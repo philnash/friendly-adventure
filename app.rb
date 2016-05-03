@@ -1,7 +1,13 @@
+Envyable.load("./config/env.yml", "development")
+
 sms_number = "+447481342184"
 voice_number = "+441473379529"
 
 use Rack::TwilioWebhookAuthentication, ENV['AUTH_TOKEN'], '/messages'
+
+ForecastIO.configure do |configuration|
+  configuration.api_key = ENV["FORECAST_API_KEY"]
+end
 
 COLOURS = {
   red: 0,
@@ -23,15 +29,46 @@ get "/" do
 end
 
 post "/messages" do
-  light = find_light(client.lights, "4")
-  hue = params["Body"].to_i
-  light.hue = hue
-  "<Response>
-    <Message>The light is set to #{hue}!</Message>
-  </Response>"
+  # Change light colour by SMS
+  # light = find_light(client.lights, "4")
+  # hue = params["Body"].to_i
+  # light.hue = hue
+  # "<Response>
+  #   <Message>The light is set to #{hue}!</Message>
+  # </Response>"
+
+  # Change light by temperature at address sent over SMS
+  address = params["Body"]
+  geodata = Geocoder.search(address).first
+  if geodata
+    latlong = geodata.data["geometry"]["location"]
+    puts latlong
+    forecast = ForecastIO.forecast(latlong["lat"], latlong["lng"])
+    puts forecast
+    actual_temp = forecast.currently.apparentTemperature
+    hue = scale_between(actual_temp, 32, 100, 42000, 0).to_i
+    puts hue
+    light = find_light(client.lights, "4")
+    light.hue = hue
+    if actual_temp < 55
+      message = "Chilly day today!"
+    elsif actual_temp < 80
+      message = "Lovely day today!"
+    else
+      message = "Hot stuff!"
+    end
+    "<Response>
+      <Message>#{message}</Message>
+    </Response>"
+  else
+    "<Response>
+      <Message>Couldn't find that place, please try again.</Message>
+    </Response>"
+  end
 end
 
 post "/voice" do
+  # Set the light colour by dialled phone digits
   if params["Digits"]
     colour = NUMBERS[params["Digits"].to_i]
     welcome = "Thanks, light turned to #{colour}."
@@ -81,7 +118,11 @@ def find_light(lights, id)
   light = lights.detect { |l| l.id == id }
 end
 
-
+def scale_between(number, from_min, from_max, to_min, to_max)
+  number = from_min if number < from_min
+  number = from_max if number > from_max
+  ((to_max - to_min) * (number - from_min)) / (from_max - from_min) + to_min
+end
 
 
 

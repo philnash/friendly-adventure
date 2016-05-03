@@ -109,6 +109,12 @@ post "/colour/:id" do
   { :light => params[:id], :hue => params["hue"] }.to_json
 end
 
+post "/github" do
+  light = find_light(client.lights, "4")
+  light.alert = "select"
+  200
+end
+
 def client
   @client ||= Hue::Client.new
 end

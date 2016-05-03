@@ -1,1 +1,35 @@
-<p>Test</p>
+<ul>
+  <% lights.each do |light| %>
+    <li>
+      <%= light.name %>
+      <form action="/toggle/<%= light.id %>" method="POST">
+        <button type="submit">Turn light <%= light.on? ? "off" : "on" %></button>
+      </form>
+
+      <% if light.name == "Go" %>
+      <input type="range" id="colour" name="colour" min="0" max="65535" value="<%= light.hue %>">
+      <% end %>
+    </li>
+  <% end %>
+</ul>
+
+<script type="text/javascript" src="https://code.jquery.com/jquery-2.2.3.min.js"></script>
+<script type="text/javascript">
+$(function() {
+  $('form').on('submit', function(event) {
+    event.preventDefault();
+    var $form = $(this);
+    $.post($form.attr("action"), function(data) {
+      var result = JSON.parse(data)
+      $form.find('button').text("Turn light " + (result.status === "off" ? "on" : "off"));
+    });
+  });
+
+  $('#colour').on('change', function(event) {
+    var $colour = $(this);
+    $.post("/colour/4?hue="+$colour.val() , function(data) {
+      console.log(data);
+    });
+  })
+});
+</script>
